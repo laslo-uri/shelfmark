@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Shelfmark</string>
+    <string name="title_activity_main">Shelfmark</string>
+    <string name="package_name">com.shelfmark.app</string>
+    <string name="custom_url_scheme">com.shelfmark.app</string>
+</resources>

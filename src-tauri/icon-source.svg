@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Shelfmark">
+  <defs>
+    <linearGradient id="bg" x1="128" y1="96" x2="896" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2a2420"/>
+      <stop offset="100%" stop-color="#0f0d0c"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8c4a8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#4a403a" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f5efe8"/>
+      <stop offset="100%" stop-color="#d4c4b0"/>
+    </linearGradient>
+    <linearGradient id="coverL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c45a5c"/>
+      <stop offset="100%" stop-color="#8b4548"/>
+    </linearGradient>
+    <linearGradient id="coverR" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b7355"/>
+      <stop offset="100%" stop-color="#5c5042"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="200" fill="url(#bg)"/>
+  <rect x="28" y="28" width="968" height="968" rx="176" fill="none" stroke="url(#rim)" stroke-width="3"/>
+
+  <circle cx="512" cy="512" r="380" fill="#241f1c" stroke="#c45a5c" stroke-width="24"/>
+
+  <g transform="translate(512 520)">
+    <path fill="url(#coverL)" d="M -200 -40 C -200 -200 -40 -240 0 -200 C 0 -200 0 200 0 200 C -120 200 -200 120 -200 -40 Z"/>
+    <path fill="url(#coverR)" d="M 200 -40 C 200 -200 40 -240 0 -200 C 0 -200 0 200 0 200 C 120 200 200 120 200 -40 Z"/>
+    <path fill="url(#page)" d="M -168 -20 C -168 -168 -24 -200 0 -168 L 0 168 C -96 168 -168 96 -168 -20 Z"/>
+    <path fill="url(#page)" d="M 168 -20 C 168 -168 24 -200 0 -168 L 0 168 C 96 168 168 96 168 -20 Z"/>
+    <path fill="#1e1916" opacity="0.12" d="M -4 -168 L 4 -168 L 4 168 L -4 168 Z"/>
+    <path fill="#c45a5c" d="M -12 -200 L 12 -200 L 20 -140 L 0 -80 L -20 -140 Z"/>
+    <path fill="#e8c4a8" opacity="0.35" d="M -180 -24 L -160 -24 L -160 -8 L -180 -8 Z"/>
+    <path fill="#e8c4a8" opacity="0.35" d="M 160 -24 L 180 -24 L 180 -8 L 160 -8 Z"/>
+  </g>
+</svg>

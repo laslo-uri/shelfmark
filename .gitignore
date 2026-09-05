@@ -1,0 +1,22 @@
+node_modules
+dist
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+
+# Tauri
+src-tauri/target
+
+# Capacitor / native (keep projects; ignore build artifacts)
+android/app/src/main/assets/public/
+ios/App/App/public/
+android/.gradle
+android/app/build
+android/build
+android/local.properties
+ios/App/Pods
+ios/App/build
+*.xcuserstate
+xcuserdata
