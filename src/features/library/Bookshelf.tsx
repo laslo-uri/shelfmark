@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { lookupIsbn } from "@/api/bookLookup";
 import { Button } from "@/components/ui/button";
@@ -40,12 +40,14 @@ export function Bookshelf({
   onAddOpenChange,
   scanOnOpen = false,
   actionsRef,
+  onDetailOpenChange,
 }: {
   onRegisterSearch?: (focus: () => void) => void;
   addOpen: boolean;
   onAddOpenChange: (open: boolean) => void;
   scanOnOpen?: boolean;
   actionsRef: RefObject<ShelfActions | null>;
+  onDetailOpenChange?: (open: boolean) => void;
 }) {
   const library = useLibrary();
   const { toast } = useToast();
@@ -56,6 +58,9 @@ export function Bookshelf({
   onRegisterSearch?.(() => searchRef.current?.focus());
 
   const current = selected ? library.allBooks.find((book) => book.id === selected.id) ?? selected : null;
+  useEffect(() => {
+    onDetailOpenChange?.(current != null);
+  }, [current, onDetailOpenChange]);
   actionsRef.current = {
     filter: library.setStatusFilter,
     sort: library.setSortBy,

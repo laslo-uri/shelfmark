@@ -6,12 +6,14 @@ import { CommandPalette } from "@/features/command/CommandPalette";
 import { useShortcuts } from "@/features/command/useShortcuts";
 import { Bookshelf, type ShelfActions } from "@/features/library/Bookshelf";
 import { useMaxWidth } from "@/hooks/useMediaQuery";
+import { StatusFooter } from "@/shell/StatusFooter";
 import { TopBar } from "@/shell/TopBar";
 
 export function App() {
   const { toast } = useToast();
   const { cycle } = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [scanOnOpen, setScanOnOpen] = useState(false);
   const searchFocus = useRef<() => void>(() => {});
@@ -71,11 +73,13 @@ export function App() {
           scanOnOpen={scanOnOpen}
           onAddOpenChange={setAddOpen}
           onRegisterSearch={(focus) => { searchFocus.current = focus; }}
+          onDetailOpenChange={setDetailOpen}
         />
       </main>
+      <StatusFooter />
       <CommandPalette
         open={paletteOpen}
-        detailOpen={Boolean(actionsRef.current?.selected)}
+        detailOpen={detailOpen}
         onClose={() => setPaletteOpen(false)}
         onAddBook={() => { setScanOnOpen(false); setAddOpen(true); }}
         onScan={() => { setScanOnOpen(true); setAddOpen(true); }}
