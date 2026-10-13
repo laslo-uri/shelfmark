@@ -20,7 +20,7 @@ function New-Shortcut($TargetPath, $Arguments, $WorkingDirectory, $IconLocation)
 $ReleaseExe = Join-Path $ProjectRoot "src-tauri\target\release\shelfmark.exe"
 $IconIco = Join-Path $ProjectRoot "src-tauri\icons\icon.ico"
 if (Test-Path $ReleaseExe) {
-    $icon = if (Test-Path $IconIco) { $IconIco } else { $ReleaseExe }
+    $icon = if (Test-Path $IconIco) { "$IconIco,0" } else { "$ReleaseExe,0" }
     New-Shortcut $ReleaseExe $null (Split-Path $ReleaseExe) $icon
     Write-Host "Desktop shortcut -> $ReleaseExe"
     Write-Host "Shortcut icon -> $icon"

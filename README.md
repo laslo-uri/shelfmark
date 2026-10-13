@@ -1,8 +1,37 @@
 # Shelfmark
 
-Your personal bookshelf, scanned from real life. Add books by scanning an ISBN barcode with your phone camera or typing the number — metadata comes from [Open Library](https://openlibrary.org) and [Google Books](https://developers.google.com/books) (both free). Everything stays on your device (IndexedDB).
+A personal bookshelf. Scan an ISBN or type one in, and the catalog stays on this device.
 
-Ships on **web**, **Windows / Mac / Linux desktop** (Tauri), **Android / iOS** (Capacitor), and **Huawei** (PWA).
+![Shelfmark shelf, with three books and their reading status](readme/screenshots/shelf-desktop.png)
+
+## Contents
+
+- [Screens](#screens)
+- [Dev](#dev)
+- [Desktop](#desktop-tauri)
+- [Mobile](#mobile-capacitor)
+- [Features](#features)
+- [Install by platform](#install-by-platform)
+- [Deploy to Vercel](#deploy-to-vercel)
+- [Book lookup](#book-lookup-free-apis)
+- [Stack](#stack)
+- [Data privacy](#data-privacy)
+
+## Screens
+
+The shelf shot is 1280×800. The add-book shot is 390×844.
+
+### Shelf
+
+![The shelf, with Earthsea, The Left Hand of Darkness, and Pride and Prejudice](readme/screenshots/shelf-desktop.png)
+
+Each book shows its cover, author, rating, and whether it is unread, reading, or read. Search and the status filter sit beside the grid.
+
+### Add a book
+
+![Adding Frankenstein from an ISBN on a phone](readme/screenshots/add-phone.png)
+
+Type an ISBN or scan a barcode. Lookup fills the title, the authors, and the cover. Add to shelf stores the book on this device.
 
 ## Dev
 

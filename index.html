@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1e1916" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0e0f11" />
+    <meta name="color-scheme" content="dark light" />
     <meta name="description" content="Shelfmark — your personal bookshelf, scanned from real life." />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -19,6 +19,30 @@
     <meta name="twitter:title" content="Shelfmark · Personal Bookshelf" />
     <meta name="twitter:description" content="Your personal bookshelf, scanned from real life." />
     <meta name="twitter:image" content="/pwa-512.png" />
+    <script>
+      (function () {
+        var stored = "dark";
+        try {
+          var value = localStorage.getItem("shelfmark-theme");
+          if (value === "dark" || value === "light" || value === "system") stored = value;
+        } catch (e) {}
+        var theme = stored === "system"
+          ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+          : stored === "light" ? "light" : "dark";
+        var root = document.documentElement;
+        root.setAttribute("data-theme", theme);
+        root.style.colorScheme = theme;
+        var color = theme === "light" ? "#f6f1ea" : "#0e0f11";
+        var themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeMeta) themeMeta.setAttribute("content", color);
+        var schemeMeta = document.querySelector('meta[name="color-scheme"]');
+        if (schemeMeta) schemeMeta.setAttribute("content", theme);
+      })();
+    </script>
+    <style>
+      html, body { margin: 0; background: #0e0f11; }
+      html[data-theme="light"], html[data-theme="light"] body { background: #f6f1ea; }
+    </style>
     <title>Shelfmark · Personal Bookshelf</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/pwa-192.png" />
@@ -27,6 +51,6 @@
   <body>
     <a href="#bookshelf-main" class="skip-link">Skip to content</a>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
