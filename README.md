@@ -35,11 +35,15 @@ Type an ISBN or scan a barcode. Lookup fills the title, the authors, and the cov
 
 ## Dev
 
+Needs Node.js 22+.
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # production PWA → dist/
 npm run preview    # preview the build
+npm test           # Vitest, single run
+npm run check      # lint + typecheck + test + build (what CI runs)
 ```
 
 ## Desktop (Tauri)
@@ -73,7 +77,7 @@ npm run cap:android    # or cap:ios on Mac
 - Responsive bookshelf grid with cover images
 - Book detail view with personal notes
 - Search by title, author, or ISBN
-- Export / import your library as JSON
+- Export / import your library as JSON (import checks and cleans every record; files over 50 MB are refused)
 - PWA for web and Huawei; offline shell after install
 
 ## Install by platform
@@ -115,4 +119,4 @@ React + Vite · Dexie · Open Library / Google Books · @zxing/browser · vite-p
 
 ## Data privacy
 
-Your library is stored locally in the browser or app WebView. No account, no server database. Use **Backup → Export JSON** regularly.
+Your library is stored locally in the browser or app WebView. No account, no server database. Use **Export** in the top bar (or **Export library** in the command palette) regularly.
