@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import type { BookStatus } from "@/types";
 
@@ -19,6 +20,20 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette(props: CommandPaletteProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Return focus to whatever was focused before the palette opened, unless a
+  // command already moved focus somewhere else (e.g. "Search library").
+  useEffect(() => {
+    if (!props.open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const root = rootRef.current;
+    return () => {
+      const active = document.activeElement;
+      const focusLeftPalette = active && active !== document.body && !root?.contains(active);
+      if (!focusLeftPalette && previous && document.contains(previous)) previous.focus();
+    };
+  }, [props.open]);
+
   if (!props.open) return null;
   const commands: Array<{ label: string; run: () => void; detailOnly?: boolean }> = [
     { label: "Add book", run: props.onAddBook },
@@ -47,7 +62,7 @@ export function CommandPalette(props: CommandPaletteProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/45" onMouseDown={props.onClose}>
+    <div className="fixed inset-0 z-50 bg-black/45" ref={rootRef} role="dialog" aria-modal="true" aria-label="Command palette" onMouseDown={props.onClose}>
       <Command
         label="Command palette"
         className="absolute top-4 left-1/2 flex max-h-[calc(100%-2rem)] w-[min(560px,calc(100%-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-xl"

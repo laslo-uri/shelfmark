@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { Book, LibraryExport, LibraryFile, NewBook } from "@/types";
+import { normalizeRating, normalizeStatus, safeCoverUrl, sanitizeBook } from "@/lib/bookData";
 
 class ShelfmarkDatabase extends Dexie {
   books!: Table<Book, number>;
@@ -42,33 +43,34 @@ export async function getBook(id: number): Promise<Book | undefined> {
 }
 
 export async function addBook(book: NewBook): Promise<number> {
-  const existing = await getBookByIsbn(book.isbn);
-  if (existing) throw new DuplicateBookError(existing);
-
-  return db.books.add({
-    isbn: book.isbn,
-    title: book.title ?? "",
-    authors: book.authors ?? [],
-    publisher: book.publisher ?? "",
-    publishDate: book.publishDate ?? "",
-    description: book.description ?? "",
-    coverUrl: book.coverUrl ?? "",
-    notes: book.notes ?? "",
-    status: book.status || "unread",
-    rating: book.rating ?? 0,
-    tags: Array.isArray(book.tags) ? book.tags : [],
-    addedAt: Date.now(),
-  } as Book);
+  const record = sanitizeBook({ ...book, addedAt: Date.now() });
+  if (!record) throw new Error("Invalid ISBN");
+  // Check and insert atomically so a double-submit cannot create two copies.
+  return db.transaction("rw", db.books, async () => {
+    const existing = await getBookByIsbn(record.isbn);
+    if (existing) throw new DuplicateBookError(existing);
+    return db.books.add(record as Book);
+  });
 }
 
 export async function updateBook(id: number, updates: Partial<Book>): Promise<number> {
-  const updated = await db.books.update(id, updates);
+  const safe: Partial<Book> = { ...updates };
+  delete safe.id;
+  if ("coverUrl" in safe) safe.coverUrl = safeCoverUrl(safe.coverUrl);
+  if ("status" in safe) safe.status = normalizeStatus(safe.status);
+  if ("rating" in safe) safe.rating = normalizeRating(safe.rating);
+  const updated = await db.books.update(id, safe);
   if (!updated) throw new Error("Could not save changes.");
   return updated;
 }
 
 export async function removeBook(id: number): Promise<void> {
   await db.books.delete(id);
+}
+
+/** Puts a just-removed book back with its original id and timestamps (undo). */
+export async function restoreBook(book: Book): Promise<number> {
+  return db.books.put(book);
 }
 
 export async function exportLibrary(): Promise<LibraryExport> {
@@ -79,46 +81,55 @@ export async function exportLibrary(): Promise<LibraryExport> {
   };
 }
 
-export async function importLibrary(data: LibraryFile, { replace = false } = {}): Promise<void> {
+export interface ImportResult {
+  added: number;
+  updated: number;
+  skipped: number;
+}
+
+export async function importLibrary(data: LibraryFile, { replace = false } = {}): Promise<ImportResult> {
   if (!data?.books || !Array.isArray(data.books)) {
     throw new Error("Invalid library file");
   }
 
-  await db.transaction("rw", db.books, async () => {
-    if (replace) await db.books.clear();
+  const result: ImportResult = { added: 0, updated: 0, skipped: 0 };
+  const now = Date.now();
+  const incoming = new Map<string, Omit<Book, "id">>();
+  for (const raw of data.books) {
+    const book = sanitizeBook(raw, now);
+    if (!book) {
+      result.skipped += 1;
+      continue;
+    }
+    // Later duplicates in the same file win, matching the old "last write" behaviour.
+    if (incoming.has(book.isbn)) result.skipped += 1;
+    incoming.set(book.isbn, book);
+  }
 
-    for (const book of data.books ?? []) {
-      if (!book.isbn) continue;
+  await db.transaction("rw", db.books, async () => {
+    if (replace) {
+      await db.books.clear();
+      await db.books.bulkAdd([...incoming.values()] as Book[]);
+      result.added = incoming.size;
+      return;
+    }
+
+    for (const book of incoming.values()) {
       const existing = await db.books.where("isbn").equals(book.isbn).first();
-      if (existing && !replace) {
-        const incomingNote = typeof book.notes === "string" ? book.notes.trim() : "";
-        const existingNote = typeof existing.notes === "string" ? existing.notes.trim() : "";
-        if (!existingNote && incomingNote) {
-          await db.books.update(existing.id as number, { notes: book.notes });
-        }
+      if (!existing) {
+        await db.books.add(book as Book);
+        result.added += 1;
         continue;
       }
-
-      const rest = { ...book };
-      delete rest.id;
-      if (existing?.id != null) {
-        await db.books.update(existing.id, rest);
+      // Merge keeps the shelf copy; only fill in notes it does not have yet.
+      const existingNote = typeof existing.notes === "string" ? existing.notes.trim() : "";
+      if (!existingNote && book.notes.trim() && existing.id != null) {
+        await db.books.update(existing.id, { notes: book.notes });
+        result.updated += 1;
       } else {
-        await db.books.add({
-          isbn: rest.isbn,
-          title: rest.title ?? "",
-          authors: rest.authors ?? [],
-          publisher: rest.publisher ?? "",
-          publishDate: rest.publishDate ?? "",
-          description: rest.description ?? "",
-          coverUrl: rest.coverUrl ?? "",
-          notes: rest.notes ?? "",
-          status: rest.status || "unread",
-          rating: rest.rating ?? 0,
-          tags: rest.tags ?? [],
-          addedAt: rest.addedAt ?? Date.now(),
-        } as Book);
+        result.skipped += 1;
       }
     }
   });
+  return result;
 }

@@ -84,6 +84,9 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id: string) {
             if (id.includes("@zxing")) return "zxing";
+            // Split stable vendor code from app code so app updates re-download less.
+            if (/node_modules[\/](react|react-dom|scheduler)[\/]/.test(id)) return "react";
+            if (/node_modules[\/](radix-ui|@radix-ui)[\/]/.test(id)) return "radix";
           },
         },
       },

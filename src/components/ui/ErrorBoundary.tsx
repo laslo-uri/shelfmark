@@ -17,7 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[Readmark]", error, info.componentStack);
+    console.error("[Shelfmark]", error, info.componentStack);
   }
 
   render() {

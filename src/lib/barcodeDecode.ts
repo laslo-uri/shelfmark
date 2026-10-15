@@ -1,6 +1,6 @@
 const EAN_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e"];
 
-async function getBarcodeDetector() {
+export async function getBarcodeDetector() {
   if (typeof window === "undefined" || !window.BarcodeDetector) return null;
   try {
     const supported = await window.BarcodeDetector.getSupportedFormats();

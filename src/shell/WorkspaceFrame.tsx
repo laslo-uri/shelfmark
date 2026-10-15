@@ -2,6 +2,30 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { useMaxWidth } from "@/hooks/useMediaQuery";
 
+/**
+ * localStorage wrapper for saved panel layouts. Access can throw (private
+ * mode, blocked storage) and the panels library parses saved values without a
+ * guard, so a corrupt entry would crash the app on every launch. Unreadable
+ * values are dropped instead.
+ */
+export const layoutStorage = {
+  getItem(key: string): string | null {
+    try {
+      const value = localStorage.getItem(key);
+      if (value == null) return null;
+      const parsed: unknown = JSON.parse(value);
+      if (parsed && typeof parsed === "object") return value;
+      localStorage.removeItem(key);
+    } catch {
+      try { localStorage.removeItem(key); } catch { /* storage unavailable */ }
+    }
+    return null;
+  },
+  setItem(key: string, value: string): void {
+    try { localStorage.setItem(key, value); } catch { /* quota or private mode */ }
+  },
+};
+
 export function WorkspaceFrame({
   storageId,
   toggleEvent,
@@ -20,7 +44,7 @@ export function WorkspaceFrame({
   const inspectorPanel = usePanelRef();
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: storageId,
-    storage: localStorage,
+    storage: layoutStorage,
     panelIds: ["rail", "center", "inspector"],
   });
 

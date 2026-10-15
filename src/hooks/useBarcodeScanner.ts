@@ -1,26 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { decodeBarcodeFromVideo } from "@/lib/barcodeDecode";
+import { decodeBarcodeFromVideo, getBarcodeDetector } from "@/lib/barcodeDecode";
 import { cameraRequiresSecureContext } from "@/lib/platform";
 
-const EAN_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e"];
+/** Native detection is costly; ~7 scans a second is plenty for a held-up barcode. */
+const NATIVE_SCAN_INTERVAL_MS = 150;
 
 const CAMERA_CONSTRAINTS: MediaStreamConstraints[] = [
   { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
   { video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
   { video: true, audio: false },
 ];
-
-async function getBarcodeDetector() {
-  if (!window.BarcodeDetector) return null;
-  try {
-    const supported = await window.BarcodeDetector.getSupportedFormats();
-    const formats = EAN_FORMATS.filter((format) => supported.includes(format));
-    if (!formats.length) return null;
-    return new window.BarcodeDetector({ formats });
-  } catch {
-    return null;
-  }
-}
 
 async function openCameraStream() {
   let lastError: unknown;
@@ -80,6 +69,8 @@ export function useBarcodeScanner({ onDetected, active }: { onDetected: (value: 
       const raw = await decodeBarcodeFromVideo(video);
       if (raw) handleDetection(raw);
       else setError("No barcode found in this shot. Center the ISBN bars and try Capture & scan again.");
+    } catch {
+      setError("Could not scan this shot. Try again, or enter the ISBN manually.");
     } finally {
       setCapturing(false);
     }
@@ -103,6 +94,7 @@ export function useBarcodeScanner({ onDetected, active }: { onDetected: (value: 
     }
 
     let cancelled = false;
+    let removeReadyListener: (() => void) | null = null;
     async function start() {
       setError(null);
       setReady(false);
@@ -121,21 +113,27 @@ export function useBarcodeScanner({ onDetected, active }: { onDetected: (value: 
         try { await video.play(); } catch { /* iOS may need a gesture */ }
         const onReady = () => { if (!cancelled && video.videoWidth > 0) setReady(true); };
         video.addEventListener("loadeddata", onReady);
+        removeReadyListener = () => video.removeEventListener("loadeddata", onReady);
         if (video.readyState >= 2) onReady();
 
         const detector = await getBarcodeDetector();
         if (cancelled) return;
         if (detector) {
           setMode("native");
-          const scan = async () => {
+          let lastScan = 0;
+          const scan = async (time: number) => {
             if (cancelled || !videoRef.current) return;
-            try {
-              const barcodes = await detector.detect(videoRef.current);
-              if (barcodes[0]) handleDetection(barcodes[0].rawValue);
-            } catch { /* frame not ready */ }
-            rafRef.current = requestAnimationFrame(() => { void scan(); });
+            if (time - lastScan >= NATIVE_SCAN_INTERVAL_MS) {
+              lastScan = time;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes[0]) handleDetection(barcodes[0].rawValue);
+              } catch { /* frame not ready */ }
+            }
+            if (cancelled) return;
+            rafRef.current = requestAnimationFrame((next) => { void scan(next); });
           };
-          rafRef.current = requestAnimationFrame(() => { void scan(); });
+          rafRef.current = requestAnimationFrame((next) => { void scan(next); });
         } else {
           setMode("zxing");
           const { BrowserMultiFormatReader } = await import("@zxing/browser");
@@ -161,6 +159,7 @@ export function useBarcodeScanner({ onDetected, active }: { onDetected: (value: 
     void start();
     return () => {
       cancelled = true;
+      removeReadyListener?.();
       stop();
     };
   }, [active, handleDetection, stop]);

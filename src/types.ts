@@ -30,7 +30,8 @@ export type NewBook = Partial<Omit<Book, "isbn">> & { isbn: string };
 export interface LibraryFile {
   version?: number;
   exportedAt?: string;
-  books?: Array<Partial<Book>>;
+  /** Untrusted records; sanitized by the importer. */
+  books?: unknown[];
 }
 
 export interface LibraryExport {

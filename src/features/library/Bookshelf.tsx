@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { lookupIsbn } from "@/api/bookLookup";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,7 @@ export function Bookshelf({
   const [selected, setSelected] = useState<Book | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [centerMode, setCenterMode] = useState<"grid" | "focus">("grid");
+  const [lookingUp, setLookingUp] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   onRegisterSearch?.(() => searchRef.current?.focus());
 
@@ -70,7 +71,20 @@ export function Bookshelf({
     selected: current,
     setStatus: (status) => { if (current?.id != null) void library.update(current.id, { status }); },
     rate: (rating) => { if (current?.id != null) void library.update(current.id, { rating }); },
-    removeSelected: () => { if (current?.id != null) void library.remove(current.id).then(() => setSelected(null)); },
+    removeSelected: () => {
+      const book = current;
+      if (book?.id == null) return;
+      void library.remove(book.id).then(() => {
+        setSelected(null);
+        toast(`Removed “${book.title || "Untitled"}”.`, "info", {
+          duration: 8000,
+          actionLabel: "Undo",
+          onAction: () => {
+            void library.restore(book).catch(() => toast("Could not restore that book.", "error"));
+          },
+        });
+      }).catch(() => toast("Could not remove that book.", "error"));
+    },
     closeDetail: () => setSelected(null),
     move: (delta) => {
       const next = stepIndex(library.books.length, library.books.findIndex((book) => book.id === current?.id), delta);
@@ -82,6 +96,7 @@ export function Bookshelf({
   };
 
   const isbn = toIsbn13(library.searchQuery);
+  const existingIsbns = useMemo(() => new Set(library.allBooks.map((book) => book.isbn)), [library.allBooks]);
 
   function choose(book: Book) {
     setSelected(book);
@@ -89,9 +104,20 @@ export function Bookshelf({
   }
 
   async function lookUpIsbn() {
-    if (!isbn) return;
+    if (!isbn || lookingUp) return;
+    const onShelf = library.allBooks.find((book) => book.isbn === isbn);
+    if (onShelf) {
+      choose(onShelf);
+      toast("Already on your shelf.", "success");
+      return;
+    }
+    setLookingUp(true);
     try {
       const found = await lookupIsbn(isbn);
+      if (!found.title.trim()) {
+        toast("No book found for that ISBN. Use Add book to enter it by hand.", "error");
+        return;
+      }
       const id = await library.add(found);
       const saved = typeof id === "number" ? await getBook(id) : null;
       if (saved) choose(saved);
@@ -103,6 +129,8 @@ export function Bookshelf({
         return;
       }
       toast(err instanceof Error ? err.message : "Lookup failed.", "error");
+    } finally {
+      setLookingUp(false);
     }
   }
 
@@ -126,8 +154,8 @@ export function Bookshelf({
                 aria-label="Search library"
               />
               {isbn ? (
-                <Button type="button" size="sm" className="h-7 text-[12px]" onClick={() => void lookUpIsbn()}>
-                  Look up ISBN
+                <Button type="button" size="sm" className="h-7 text-[12px]" disabled={lookingUp} onClick={() => void lookUpIsbn()}>
+                  {lookingUp ? "Looking up…" : "Look up ISBN"}
                 </Button>
               ) : null}
               <Select value={library.statusFilter} onValueChange={(value) => library.setStatusFilter(value as StatusFilter)}>
@@ -143,6 +171,7 @@ export function Bookshelf({
                 <button
                   key={book.id}
                   type="button"
+                  aria-current={current?.id === book.id ? "true" : undefined}
                   className={cn("block w-full border-b px-2 py-1.5 text-left", current?.id === book.id && "bg-secondary")}
                   onClick={() => choose(book)}
                 >
@@ -229,7 +258,7 @@ export function Bookshelf({
       <AddBookSheet
         open={addOpen}
         scanOnOpen={scanOnOpen}
-        existingIsbns={new Set(library.allBooks.map((book) => book.isbn))}
+        existingIsbns={existingIsbns}
         onClose={() => onAddOpenChange(false)}
         onSave={library.add}
       />

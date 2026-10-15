@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { lookupIsbn } from "@/api/bookLookup";
 import {
   addBook,
   exportLibrary,
   getAllBooks,
-  getBook,
   importLibrary,
   removeBook,
+  restoreBook,
   updateBook,
 } from "@/db/db";
 import { collectTags, filterAndSortBooks } from "@/lib/library";
@@ -45,6 +44,10 @@ export function useLibrary() {
     mutationFn: (id: number) => removeBook(id),
     onSuccess: invalidate,
   });
+  const restore = useMutation({
+    mutationFn: (book: Book) => restoreBook(book),
+    onSuccess: invalidate,
+  });
   const importData = useMutation({
     mutationFn: ({ data, replace }: { data: LibraryFile; replace: boolean }) => importLibrary(data, { replace }),
     onSuccess: invalidate,
@@ -67,56 +70,9 @@ export function useLibrary() {
     add: add.mutateAsync,
     update: (id: number, updates: Partial<Book>) => update.mutateAsync({ id, updates }),
     remove: remove.mutateAsync,
+    restore: restore.mutateAsync,
     exportData: exportLibrary,
     importData: (data: LibraryFile, options?: { replace?: boolean }) =>
       importData.mutateAsync({ data, replace: Boolean(options?.replace) }),
   };
-}
-
-export function useBook(id: number | null) {
-  return useQuery({
-    queryKey: ["books", id],
-    enabled: id != null,
-    queryFn: () => getBook(id as number),
-  });
-}
-
-export function useAddBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (book: NewBook) => addBook(book),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["books"] }),
-  });
-}
-
-export function useUpdateBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<Book> }) => updateBook(id, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["books"] }),
-  });
-}
-
-export function useDeleteBook() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => removeBook(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["books"] }),
-  });
-}
-
-export function useImportLibrary() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ data, replace }: { data: LibraryFile; replace?: boolean }) =>
-      importLibrary(data, { replace: Boolean(replace) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["books"] }),
-  });
-}
-
-export function useIsbnLookup() {
-  return useMutation({
-    mutationFn: (isbn: string) => lookupIsbn(isbn),
-    retry: 1,
-  });
 }

@@ -1,10 +1,25 @@
+import { useState } from "react";
 import type { Book } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { STATUSES, bookStatus } from "@/lib/library";
 import { cn } from "@/lib/utils";
 
 export function BookCover({ book, className }: { book: Pick<Book, "coverUrl" | "title">; className?: string }) {
-  if (book.coverUrl) {
-    return <img src={book.coverUrl} alt="" className={cn("aspect-[2/3] w-full rounded-md bg-secondary object-cover", className)} />;
+  // Remember which URL failed so a broken cover falls back to the title tile,
+  // and a new URL gets a fresh attempt.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  if (book.coverUrl && failedUrl !== book.coverUrl) {
+    return (
+      <img
+        src={book.coverUrl}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={() => setFailedUrl(book.coverUrl)}
+        className={cn("aspect-[2/3] w-full rounded-md bg-secondary object-cover", className)}
+      />
+    );
   }
   return (
     <div aria-hidden="true" className={cn("flex aspect-[2/3] w-full items-center justify-center rounded-md bg-secondary px-2 text-center text-xs text-muted-foreground", className)}>
@@ -14,6 +29,18 @@ export function BookCover({ book, className }: { book: Pick<Book, "coverUrl" | "
 }
 
 export function StarRating({ rating, onChange, className }: { rating: number; onChange?: (rating: number) => void; className?: string }) {
+  if (!onChange) {
+    // Read-only: one labelled image instead of five focusable no-op buttons.
+    return (
+      <div className={cn("flex gap-0.5 text-lg leading-none", className)} role="img" aria-label={rating ? `Rated ${rating} of 5` : "Not rated"}>
+        {Array.from({ length: 5 }, (_, index) => (
+          <span key={index} aria-hidden="true" className={index < rating ? "text-primary" : "text-muted-foreground"}>
+            {index < rating ? "★" : "☆"}
+          </span>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className={cn("flex flex-wrap gap-0.5", className)} role="radiogroup" aria-label="Rating">
       {Array.from({ length: 5 }, (_, index) => {
@@ -29,7 +56,7 @@ export function StarRating({ rating, onChange, className }: { rating: number; on
             className={cn("text-lg leading-none", active ? "text-primary" : "text-muted-foreground")}
             onClick={(event) => {
               event.stopPropagation();
-              onChange?.(value === rating ? 0 : value);
+              onChange(value === rating ? 0 : value);
             }}
           >
             {active ? "★" : "☆"}
@@ -55,7 +82,7 @@ export function BookCard({ book, onOpen, layout = "grid" }: { book: Book; onOpen
         </button>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <StarRating rating={book.rating || 0} />
-          <Badge variant="secondary">{book.status}</Badge>
+          <Badge variant="secondary">{statusLabel(book)}</Badge>
         </div>
       </article>
     );
@@ -69,8 +96,13 @@ export function BookCard({ book, onOpen, layout = "grid" }: { book: Book; onOpen
       </button>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <StarRating rating={book.rating || 0} />
-        <Badge variant="secondary">{book.status}</Badge>
+        <Badge variant="secondary">{statusLabel(book)}</Badge>
       </div>
     </article>
   );
+}
+
+function statusLabel(book: Pick<Book, "status">) {
+  const id = bookStatus(book);
+  return STATUSES.find((status) => status.id === id)?.label ?? "Unread";
 }

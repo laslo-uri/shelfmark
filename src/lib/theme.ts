@@ -42,8 +42,13 @@ export function setThemeChoice(choice: ThemeChoice) {
   applyTheme(choice);
 }
 
+let systemListenerBound = false;
+
+/** Applies the stored theme. Safe to call repeatedly: the OS listener is bound once. */
 export function initTheme() {
   applyTheme(getThemeChoice());
+  if (systemListenerBound) return;
+  systemListenerBound = true;
   const media = window.matchMedia("(prefers-color-scheme: light)");
   media.addEventListener("change", () => {
     if (getThemeChoice() === "system") applyTheme("system");

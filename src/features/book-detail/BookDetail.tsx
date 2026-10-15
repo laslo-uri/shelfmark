@@ -1,24 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BookCover, StarRating } from "@/features/library/BookCard";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { safeCoverUrl } from "@/lib/bookData";
+import { readCoverFile } from "@/lib/coverImage";
 import { STATUSES, bookStatus } from "@/lib/library";
 import type { Book, BookStatus } from "@/types";
-
-async function compressCover(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 600 / bitmap.width);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not read that image.");
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.8);
-}
 
 export function BookDetail({
   book,
@@ -42,20 +32,55 @@ export function BookDetail({
   const [saveError, setSaveError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const authorsKey = (book.authors || []).join(", ");
   const dirty = title !== (book.title || "")
-    || authors !== (book.authors || []).join(", ")
+    || authors !== authorsKey
     || coverUrl !== (book.coverUrl || "")
     || notes !== (book.notes ?? "");
+  const coverInvalid = coverUrl.trim() !== "" && !safeCoverUrl(coverUrl);
+
+  // Latest committed draft, read when this book is swapped out or unmounted.
+  // Updated in an effect (not during render) so the cleanup below still sees
+  // the previous book's draft when `book.id` changes.
+  const draftRef = useRef<{ id?: number; dirty: boolean; updates: Partial<Book> }>({ dirty: false, updates: {} });
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+    draftRef.current = { id: book.id, dirty: dirty && !coverInvalid, updates: draftUpdates() };
+  });
 
   const embedded = layout === "inspector";
   useFocusTrap(overlayRef, !embedded, () => { void requestClose(); });
 
+  // Autosave unsaved edits when the inspector switches to another book or closes.
+  useEffect(() => () => {
+    const draft = draftRef.current;
+    if (draft.dirty && draft.id != null) void onUpdateRef.current(draft.id, draft.updates).catch(() => {});
+  }, [book.id]);
+
+  // Re-sync drafts only when the stored values change. `authors` is compared as a
+  // string because every refetch hands us a new array, which used to wipe
+  // in-progress edits whenever status, rating, or tags were saved.
   useEffect(() => {
     setNotes(book.notes ?? "");
     setTitle(book.title || "");
-    setAuthors((book.authors || []).join(", "));
+    setAuthors(authorsKey);
     setCoverUrl(book.coverUrl || "");
-  }, [book.id, book.notes, book.title, book.authors, book.coverUrl]);
+  }, [book.id, book.notes, book.title, authorsKey, book.coverUrl]);
+
+  useEffect(() => {
+    setConfirmDelete(false);
+    setSaveError("");
+  }, [book.id]);
+
+  function draftUpdates(): Partial<Book> {
+    return {
+      notes,
+      title: title.trim() || "Untitled",
+      authors: authors.split(",").map((name) => name.trim()).filter(Boolean),
+      coverUrl: coverUrl.trim(),
+    };
+  }
 
   async function patch(updates: Partial<Book>) {
     if (book.id == null) return;
@@ -69,15 +94,14 @@ export function BookDetail({
 
   async function saveDetails() {
     if (book.id == null) return false;
+    if (coverInvalid) {
+      setSaveError("Cover URL must start with https:// or http://.");
+      return false;
+    }
     setSaving(true);
     setSaveError("");
     try {
-      await onUpdate(book.id, {
-        notes,
-        title: title.trim() || "Untitled",
-        authors: authors.split(",").map((name) => name.trim()).filter(Boolean),
-        coverUrl: coverUrl.trim(),
-      });
+      await onUpdate(book.id, draftUpdates());
       return true;
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Could not save changes.");
@@ -102,7 +126,7 @@ export function BookDetail({
           <Button type="button" variant="ghost" className="w-fit" onClick={() => void requestClose()}>Back</Button>
         )}
         <div className="grid gap-6 sm:grid-cols-[180px_1fr]">
-          <BookCover book={{ ...book, coverUrl, title }} />
+          <BookCover book={{ ...book, coverUrl: safeCoverUrl(coverUrl), title }} />
           <div className="space-y-3">
             <label className="block text-sm">Title
               <Input className="mt-1 text-base" value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -134,14 +158,14 @@ export function BookDetail({
           <Textarea className="mt-1 text-base" value={notes} onChange={(event) => setNotes(event.target.value)} />
         </label>
         <label className="block text-sm">Cover URL
-          <Input className="mt-1 text-base" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} />
+          <Input className="mt-1 text-base" type="url" inputMode="url" value={coverUrl} aria-invalid={coverInvalid || undefined} onChange={(event) => setCoverUrl(event.target.value)} />
         </label>
         <label className="block text-sm">Upload cover
           <Input className="mt-1 text-base" type="file" accept="image/*" onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
             if (!file) return;
-            void compressCover(file).then(setCoverUrl).catch((err: unknown) => {
+            void readCoverFile(file).then(setCoverUrl).catch((err: unknown) => {
               setSaveError(err instanceof Error ? err.message : "Could not read that image.");
             });
           }} />
@@ -156,7 +180,23 @@ export function BookDetail({
           <Input className="min-w-0 flex-1" value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Add a tag" aria-label="Add a tag" />
           <Button type="submit" variant="secondary">Add tag</Button>
         </form>
-        <div className="flex flex-wrap gap-2">{(book.tags || []).map((tag) => <span key={tag} className="rounded-full bg-secondary px-2 py-1 text-xs">{tag}</span>)}</div>
+        {(book.tags || []).length ? (
+          <ul className="flex flex-wrap gap-2" aria-label="Tags">
+            {(book.tags || []).map((tag) => (
+              <li key={tag} className="flex items-center gap-1 rounded-full bg-secondary py-1 pr-1 pl-2 text-xs">
+                {tag}
+                <button
+                  type="button"
+                  className="flex size-4 items-center justify-center rounded-full opacity-70 hover:opacity-100"
+                  aria-label={`Remove tag ${tag}`}
+                  onClick={() => void patch({ tags: (book.tags || []).filter((item) => item !== tag) })}
+                >
+                  <XIcon className="size-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {saveError ? <p className="text-sm text-destructive" role="alert">{saveError}</p> : null}
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button type="button" className="w-full sm:w-auto" onClick={() => void saveDetails()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
@@ -166,7 +206,10 @@ export function BookDetail({
               return;
             }
             if (book.id == null) return;
-            void onRemove(book.id).then(onClose);
+            void onRemove(book.id).then(onClose).catch((err: unknown) => {
+              setConfirmDelete(false);
+              setSaveError(err instanceof Error ? err.message : "Could not remove this book.");
+            });
           }}>{confirmDelete ? "Confirm remove" : "Remove"}</Button>
         </div>
       </div>

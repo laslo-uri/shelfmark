@@ -31,11 +31,16 @@ export function AddBookSheet({
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+  // Bumped on every lookup and on close so a slow response cannot overwrite a newer one.
+  const requestRef = useRef(0);
   useFocusTrap(sheetRef, open && !scannerOpen);
 
   useEffect(() => {
     if (!open) {
+      requestRef.current += 1;
+      setSaving(false);
       setIsbnInput("");
       setPreview(null);
       setManualTitle("");
@@ -50,6 +55,7 @@ export function AddBookSheet({
   }, [open, scanOnOpen]);
 
   async function lookup(raw: string) {
+    const request = ++requestRef.current;
     setLoading(true);
     setError(null);
     setInfo(null);
@@ -69,38 +75,43 @@ export function AddBookSheet({
     }
     try {
       const book = await lookupIsbn(isbn13);
+      if (request !== requestRef.current) return;
       setPreview(book);
       setManualTitle(book.title);
       setManualAuthors(book.authors.join(", "));
       if (!book.title.trim()) setInfo("No title found online. Enter one below.");
     } catch {
+      if (request !== requestRef.current) return;
       const book = createManualBook(isbn13);
       setPreview(book);
       setInfo("Could not reach book databases. Enter the title manually.");
     } finally {
-      setLoading(false);
+      if (request === requestRef.current) setLoading(false);
     }
   }
 
   async function handleSave() {
-    if (!preview) return;
+    if (!preview || saving) return;
     const title = (manualTitle || preview.title || "").trim();
     if (!title) {
       setError("Please enter a title for this book.");
       return;
     }
     const authors = manualAuthors.split(",").map((name) => name.trim()).filter(Boolean);
+    setSaving(true);
     try {
       await onSave({ ...preview, title, authors });
       onClose();
     } catch (err) {
       setError(err instanceof DuplicateBookError ? "Already on your shelf" : err instanceof Error ? err.message : "Could not save book.");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <Sheet open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <SheetContent ref={sheetRef} className="overflow-y-auto">
+      <SheetContent ref={sheetRef} className="overflow-y-auto" aria-describedby={undefined}>
         <SheetHeader>
           <SheetTitle>Add a book</SheetTitle>
         </SheetHeader>
@@ -129,7 +140,7 @@ export function AddBookSheet({
             <label className="block text-sm">Authors
               <Input className="mt-1" value={manualAuthors} onChange={(event) => setManualAuthors(event.target.value)} />
             </label>
-            <Button type="button" onClick={() => void handleSave()}>Add to shelf</Button>
+            <Button type="button" disabled={saving} onClick={() => void handleSave()}>{saving ? "Adding…" : "Add to shelf"}</Button>
           </div>
         ) : null}
       </SheetContent>

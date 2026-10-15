@@ -1,13 +1,15 @@
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { downloadJson } from "@/lib/download";
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { CommandPalette } from "@/features/command/CommandPalette";
 import { useShortcuts } from "@/features/command/useShortcuts";
 import { Bookshelf, type ShelfActions } from "@/features/library/Bookshelf";
 import { useMaxWidth } from "@/hooks/useMediaQuery";
 import { StatusFooter } from "@/shell/StatusFooter";
 import { TopBar } from "@/shell/TopBar";
+
+// cmdk and the palette are only needed once someone opens it.
+const CommandPalette = lazy(() => import("@/features/command/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 
 export function App() {
   const { toast } = useToast();
@@ -20,6 +22,7 @@ export function App() {
   const importRef = useRef<HTMLInputElement>(null);
   const actionsRef = useRef<ShelfActions | null>(null);
   const narrow = useMaxWidth(900);
+  const overlayOpen = paletteOpen || addOpen;
 
   async function exportLibrary() {
     const data = await actionsRef.current?.exportData();
@@ -34,21 +37,27 @@ export function App() {
       setScanOnOpen(false);
       setAddOpen(true);
     },
-    search: () => searchFocus.current(),
+    search: () => {
+      if (!overlayOpen) searchFocus.current();
+    },
+    // Close the topmost layer only: palette, then the add sheet, then the open book.
     escape: () => {
-      if (actionsRef.current?.selected) {
-        actionsRef.current.closeDetail();
+      if (paletteOpen) {
+        setPaletteOpen(false);
         return;
       }
       if (addOpen) {
         setAddOpen(false);
         return;
       }
-      if (paletteOpen) setPaletteOpen(false);
+      if (document.querySelector('[role="dialog"][data-state="open"], [role="listbox"][data-state="open"]')) return;
+      actionsRef.current?.closeDetail();
     },
     exportLibrary: () => { void exportLibrary().catch(() => toast("Export failed.", "error")); },
     importLibrary: () => importRef.current?.click(),
-    moveSelection: (delta) => actionsRef.current?.move(delta),
+    moveSelection: (delta) => {
+      if (!overlayOpen) actionsRef.current?.move(delta);
+    },
     toggleInspector: () => window.dispatchEvent(new Event("shelfmark:toggle-inspector")),
   });
 
@@ -61,8 +70,8 @@ export function App() {
         onPalette={() => setPaletteOpen(true)}
         onExport={async () => actionsRef.current?.exportData()}
         onImport={async (data, options) => {
-          await actionsRef.current?.importData(data, options);
-          toast(options.replace ? "Library replaced." : "Library merged.", "success");
+          if (!actionsRef.current) throw new Error("Library is still loading.");
+          return actionsRef.current.importData(data, options);
         }}
         importRef={importRef}
       />
@@ -77,22 +86,26 @@ export function App() {
         />
       </main>
       <StatusFooter />
-      <CommandPalette
-        open={paletteOpen}
-        detailOpen={detailOpen}
-        onClose={() => setPaletteOpen(false)}
-        onAddBook={() => { setScanOnOpen(false); setAddOpen(true); }}
-        onScan={() => { setScanOnOpen(true); setAddOpen(true); }}
-        onToggleTheme={cycle}
-        onSearch={() => searchFocus.current()}
-        onFilter={(status) => actionsRef.current?.filter(status)}
-        onSort={(sort) => actionsRef.current?.sort(sort)}
-        onExport={() => { void exportLibrary().catch(() => toast("Export failed.", "error")); }}
-        onImport={() => importRef.current?.click()}
-        onSetStatus={(status) => actionsRef.current?.setStatus(status)}
-        onRate={(rating) => actionsRef.current?.rate(rating)}
-        onDelete={() => actionsRef.current?.removeSelected()}
-      />
+      {paletteOpen ? (
+        <Suspense fallback={null}>
+          <CommandPalette
+            open={paletteOpen}
+            detailOpen={detailOpen}
+            onClose={() => setPaletteOpen(false)}
+            onAddBook={() => { setScanOnOpen(false); setAddOpen(true); }}
+            onScan={() => { setScanOnOpen(true); setAddOpen(true); }}
+            onToggleTheme={cycle}
+            onSearch={() => searchFocus.current()}
+            onFilter={(status) => actionsRef.current?.filter(status)}
+            onSort={(sort) => actionsRef.current?.sort(sort)}
+            onExport={() => { void exportLibrary().catch(() => toast("Export failed.", "error")); }}
+            onImport={() => importRef.current?.click()}
+            onSetStatus={(status) => actionsRef.current?.setStatus(status)}
+            onRate={(rating) => actionsRef.current?.rate(rating)}
+            onDelete={() => actionsRef.current?.removeSelected()}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

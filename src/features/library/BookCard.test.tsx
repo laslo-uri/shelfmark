@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Book } from "@/types";
 import { BookCard } from "@/features/library/BookCard";
@@ -25,6 +25,17 @@ describe("BookCard", () => {
     renderApp(<BookCard book={book} onOpen={vi.fn()} />);
     expect(screen.getAllByText("Dune").length).toBeGreaterThan(0);
     expect(screen.getByText("Frank Herbert")).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "4 stars" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("img", { name: "Rated 4 of 5" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.getByText("Unread")).toBeInTheDocument();
+  });
+
+  it("falls back to the title tile when the cover fails to load", () => {
+    const { container } = renderApp(<BookCard book={{ ...book, coverUrl: "https://example.com/missing.jpg" }} onOpen={vi.fn()} />);
+    const img = container.querySelector("img");
+    expect(img).toHaveAttribute("loading", "lazy");
+    fireEvent.error(img!);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getAllByText("Dune").length).toBeGreaterThan(1);
   });
 });

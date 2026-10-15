@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode, type RefObject } from "react";
 import { downloadJson } from "@/lib/download";
+import { MAX_IMPORT_BYTES, parseLibraryText } from "@/lib/bookData";
 import { useToast } from "@/contexts/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +21,7 @@ export function ExportImport({
   const localRef = useRef<HTMLInputElement>(null);
   const fileRef = importRef ?? localRef;
   const [pending, setPending] = useState<LibraryFile | null>(null);
+  const [importing, setImporting] = useState(false);
 
   async function handleExport() {
     try {
@@ -33,13 +35,15 @@ export function ExportImport({
   }
 
   async function finishImport(replace: boolean) {
-    if (!pending) return;
+    if (!pending || importing) return;
+    setImporting(true);
     try {
-      await onImport(pending, { replace });
-      toast(replace ? "Library replaced." : "Library merged.", "success");
-    } catch {
-      toast("Import failed.", "error");
+      const result = await onImport(pending, { replace });
+      toast(`${replace ? "Library replaced." : "Library merged."}${importSummary(result)}`, "success");
+    } catch (err) {
+      toast(err instanceof Error && err.message ? `Import failed: ${err.message}` : "Import failed.", "error");
     } finally {
+      setImporting(false);
       setPending(null);
     }
   }
@@ -60,23 +64,41 @@ export function ExportImport({
           const file = event.target.files?.[0];
           event.target.value = "";
           if (!file) return;
+          if (file.size > MAX_IMPORT_BYTES) {
+            toast("That file is too large to import.", "error");
+            return;
+          }
           void file.text().then((text) => {
-            setPending(JSON.parse(text) as LibraryFile);
-          }).catch(() => toast("Invalid library file.", "error"));
+            setPending(parseLibraryText(text));
+          }).catch((err: unknown) => toast(err instanceof Error ? err.message : "Invalid library file.", "error"));
         }}
       />
-      <Dialog open={pending != null} onOpenChange={(open) => { if (!open) setPending(null); }}>
+      <Dialog open={pending != null} onOpenChange={(open) => { if (!open && !importing) setPending(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Import library</DialogTitle>
-            <DialogDescription>Merge keeps the books already on your shelf. Replace clears the shelf first.</DialogDescription>
+            <DialogDescription>
+              {pending?.books?.length ?? 0} {pending?.books?.length === 1 ? "book" : "books"} in this file.
+              Merge keeps the books already on your shelf. Replace clears the shelf first.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => { void finishImport(false); }}>Merge</Button>
-            <Button type="button" variant="danger" onClick={() => { void finishImport(true); }}>Replace</Button>
+            <Button type="button" variant="secondary" disabled={importing} onClick={() => { void finishImport(false); }}>Merge</Button>
+            <Button type="button" variant="danger" disabled={importing} onClick={() => { void finishImport(true); }}>Replace</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
   );
+}
+
+function importSummary(result: unknown): string {
+  if (!result || typeof result !== "object") return "";
+  const { added, updated, skipped } = result as { added?: number; updated?: number; skipped?: number };
+  const parts = [
+    added ? `${added} added` : "",
+    updated ? `${updated} updated` : "",
+    skipped ? `${skipped} skipped` : "",
+  ].filter(Boolean);
+  return parts.length ? ` ${parts.join(", ")}.` : "";
 }
