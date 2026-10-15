@@ -1,0 +1,4 @@
+/* Paint the theme background before the app loads. Kept out of index.html so
+   Tauri does not add a style-src nonce, which would disable 'unsafe-inline'. */
+html, body { margin: 0; background: #0e0f11; }
+html[data-theme="light"], html[data-theme="light"] body { background: #f6f1ea; }
