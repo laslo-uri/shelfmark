@@ -3,8 +3,8 @@
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-# Shortcuts live in the Desktop\Library folder.
-$Desktop = Join-Path ([Environment]::GetFolderPath("Desktop")) "Library"
+# Shortcuts live in the Desktop\LibraryApps folder.
+$Desktop = Join-Path ([Environment]::GetFolderPath("Desktop")) "LibraryApps"
 New-Item -ItemType Directory -Force $Desktop | Out-Null
 $ShortcutPath = Join-Path $Desktop "Shelfmark.lnk"
 $WshShell = New-Object -ComObject WScript.Shell
