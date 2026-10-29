@@ -51,7 +51,12 @@ export function getPlatform(): PlatformInfo {
   else if (isLinux) os = "linux";
 
   const isMobile = isIOS || isAndroid || isHuawei;
+  // The Tauri and Capacitor shells are already installed apps, so they count as standalone.
+  const isNativeShell =
+    "__TAURI_INTERNALS__" in window ||
+    (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() === true;
   const isStandalone =
+    isNativeShell ||
     window.matchMedia("(display-mode: standalone)").matches ||
     window.matchMedia("(display-mode: fullscreen)").matches ||
     window.navigator.standalone === true;
