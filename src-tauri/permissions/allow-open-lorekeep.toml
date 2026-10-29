@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-open-lorekeep"
+description = "Open or focus the LoreKeep lobby app"
+commands.allow = ["open_lorekeep"]

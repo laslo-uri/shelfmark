@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/features/settings/ThemeToggle";
 import { useMinWidth } from "@/hooks/useMediaQuery";
 import { bindWindowControls, isTauri } from "@/lib/desktop";
 import { APP_VERSION } from "@/lib/version";
+import { BackToLoreKeep } from "@/shell/BackToLoreKeep";
 import type { LibraryFile } from "@/types";
 
 export function TopBar({
@@ -33,6 +34,7 @@ export function TopBar({
 
   return (
     <header className="flex h-10 shrink-0 items-center gap-1.5 border-b border-border bg-card pr-1">
+      {tauri ? <BackToLoreKeep showLabel={showLabels} /> : null}
       {showMenu ? (
         <button type="button" className="ml-1 flex size-7 shrink-0 items-center justify-center" aria-label="Open library" onClick={onMenu}>
           <Menu size={16} />

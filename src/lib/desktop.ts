@@ -17,3 +17,10 @@ function bind(id: string, action: () => void): void {
   button.dataset.bound = "1";
   button.addEventListener("click", action);
 }
+
+/** Open the LoreKeep lobby app, or focus it when it is already open. Desktop (Tauri) only. */
+export async function openLoreKeep(): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("open_lorekeep");
+}
