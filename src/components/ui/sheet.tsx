@@ -36,7 +36,7 @@ function SheetContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute top-3 right-3 rounded-xs opacity-70 hover:opacity-100">
+        <DialogPrimitive.Close className="absolute top-3 right-3 rounded-xs opacity-70 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring">
           <XIcon />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

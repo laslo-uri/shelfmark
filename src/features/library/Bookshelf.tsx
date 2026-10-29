@@ -224,7 +224,7 @@ export function Bookshelf({
                       <Button type="button" size="icon" variant={view === "list" ? "secondary" : "ghost"} aria-label="List view" onClick={() => { setView("list"); setCenterMode("grid"); }}><ListIcon /></Button>
                     </div>
                   </div>
-                  <div className={cn(view === "grid" ? "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5" : "flex flex-col gap-2")}>
+                  <div className={cn(view === "grid" ? "grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5" : "flex flex-col gap-2")}>
                     {library.books.map((book) => (
                       <BookCard key={book.id} book={book} layout={view} onOpen={choose} />
                     ))}
