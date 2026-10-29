@@ -53,7 +53,7 @@ npm run check      # lint + typecheck + test + build (what CI runs)
 ```powershell
 npm run tauri:dev      # native window + Vite dev server
 npm run tauri:build    # installer (NSIS on Windows)
-npm run desktop:shortcut   # Shelfmark.lnk on Windows Desktop
+npm run desktop:shortcut   # Shelfmark.lnk in Desktop\LibraryApps
 ```
 
 **Windows installer:** `src-tauri/target/release/bundle/nsis/Shelfmark_*_x64-setup.exe` (creates Desktop + Start Menu shortcuts on install).

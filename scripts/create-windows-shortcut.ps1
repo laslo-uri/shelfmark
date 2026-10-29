@@ -53,8 +53,8 @@ $Browsers = @(
 
 foreach ($browser in $Browsers) {
     if (Test-Path $browser.Path) {
-        $args = "--app=$Url"
-        New-Shortcut $browser.Path $args $ProjectRoot $browser.Path
+        $browserArgs = "--app=$Url"
+        New-Shortcut $browser.Path $browserArgs $ProjectRoot $browser.Path
         Write-Host "Desktop shortcut -> $($browser.Name) app mode ($Url)"
         Write-Host "For native desktop app, run: npm run tauri:build"
         exit 0
